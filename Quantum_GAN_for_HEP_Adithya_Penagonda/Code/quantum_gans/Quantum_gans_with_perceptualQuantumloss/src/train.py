@@ -4,10 +4,10 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from src.data_preprocessing import load_data, normalize_and_resize, sample_data, apply_pca, JetDataset
-from src.model import create_generator_qnode, create_discriminator_qnode, QuantumGAN
-from src.utils import perceptual_loss, quantum_fidelity, plot_losses, save_models
-from torchvision import models, transforms
+from data_preprocessing import load_data, normalize_and_resize, sample_data, apply_pca, JetDataset
+from model import create_generator_qnode, create_discriminator_qnode, QuantumGAN
+from utils import perceptual_loss, quantum_fidelity, plot_losses, save_models
+from torchvision import models
 import argparse
 import pennylane as qml
 
@@ -51,6 +51,8 @@ def main(args):
     for param in vgg.parameters():
         param.requires_grad = False
 
+    d_loss_arr = []
+    g_loss_arr = []
     # Training Loop
     for epoch in range(args.epochs):
         for i, real_data in enumerate(dataloader):
@@ -99,29 +101,34 @@ def main(args):
             g_optimizer.step()
 
             # Logging
-            if (i + 1) % args.log_interval == 0:
-                print(f'Epoch [{epoch+1}/{args.epochs}], Step [{i+1}/{len(dataloader)}], '
-                      f'D Loss: {d_loss.item():.4f}, G Loss: {g_loss.item():.4f}, '
-                      f'Perceptual Loss: {ploss.item():.4f}, Fidelity: {q_fidelity:.4f}')
+            #if (i + 1) % args.log_interval == 0:
+            print(f'Epoch [{epoch+1}/{args.epochs}], Step [{i+1}/{len(dataloader)}], '
+                  f'D Loss: {d_loss.item():.4f}, G Loss: {g_loss.item():.4f}, '
+                  f'Perceptual Loss: {ploss.item():.4f}, Fidelity: {q_fidelity:.4f}')
+            if i+1 == len(dataloader):
+                d_loss_arr.append(d_loss.item())
+                g_loss_arr.append(g_loss.item())
 
         # Save models and plot losses after each epoch
-        save_models(generator, discriminator, epoch, args)
-        plot_losses(epoch, args)
 
+        save_models(generator, discriminator, epoch, args)
+        # plot_losses(epoch, args)
+    plot_losses(args.epochs, args, d_loss_arr, g_loss_arr)
     print("Training Completed.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Quantum GAN with Perceptual Quantum Loss Training')
     parser.add_argument('--data_path', type=str, default='data/jet-images_Mass60-100_pT250-300_R1.25_Pix25.hdf5', help='Path to the HDF5 data file')
-    parser.add_argument('--num_samples', type=int, default=10000, help='Number of samples to use')
+    parser.add_argument('--save_path', type=str, default='final_output/', help='Path to the final output')
+    parser.add_argument('--num_samples', type=int, default=5000, help='Number of samples to use')
     parser.add_argument('--pca_components', type=int, default=8, help='Number of PCA components')
     parser.add_argument('--n_layers', type=int, default=3, help='Number of layers in quantum circuits')
-    parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs')
+    parser.add_argument('--epochs', type=int, default=16, help='Number of training epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
     parser.add_argument('--g_lr', type=float, default=0.01, help='Generator learning rate')
     parser.add_argument('--d_lr', type=float, default=0.01, help='Discriminator learning rate')
     parser.add_argument('--alpha', type=float, default=1.0, help='Weight for perceptual loss')
     parser.add_argument('--beta', type=float, default=1.0, help='Weight for fidelity')
-    parser.add_argument('--log_interval', type=int, default=100, help='Logging interval')
+    parser.add_argument('--log_interval', type=int, default=10, help='Logging interval')
     args = parser.parse_args()
     main(args)

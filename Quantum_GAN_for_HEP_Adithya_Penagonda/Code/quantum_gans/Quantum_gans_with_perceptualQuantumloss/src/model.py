@@ -1,6 +1,7 @@
 # quantum_gan_with_Perceptual_quantum_loss/src/model.py
-
-
+import pennylane as qml
+import torch
+import torch.nn as nn
 
 def create_generator_qnode(dev, n_qubits):
     @qml.qnode(dev, interface='torch')

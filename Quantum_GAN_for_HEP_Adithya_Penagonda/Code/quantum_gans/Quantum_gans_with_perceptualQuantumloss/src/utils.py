@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA
 import pennylane as qml
+import matplotlib.gridspec as gridspec
 
 def perceptual_loss(real_images, fake_images, vgg, pca):
     # Inverse PCA transformation
@@ -14,8 +15,14 @@ def perceptual_loss(real_images, fake_images, vgg, pca):
     fake_images = pca.inverse_transform(fake_images.cpu().detach().numpy())
 
     # Reshape to image format
-    real_images = torch.tensor(real_images, dtype=torch.float32).view(-1, 1, 16, 16).to(real_images.device)
-    fake_images = torch.tensor(fake_images, dtype=torch.float32).view(-1, 1, 16, 16).to(fake_images.device)
+    real_images = torch.tensor(real_images, dtype=torch.float32)
+    fake_images = torch.tensor(fake_images, dtype=torch.float32)
+    
+    real_images = real_images.view(-1, 1, 16, 16)
+    fake_images = fake_images.view(-1, 1, 16, 16)
+    
+    real_images = real_images.to(real_images.device)
+    fake_images = fake_images.to(fake_images.device)
 
     # Upsample to 224x224 and replicate channels
     upsample = transforms.Resize((224, 224))
@@ -57,9 +64,45 @@ def quantum_fidelity(real_data, fake_data, pca):
         fidelities.append(fidelity)
     return np.mean(fidelities)
 
-def plot_losses(epoch, args):
+def plot_losses(epoch, args,disc_loss,gen_loss):
     # Implement plotting of losses
-    pass  # To be implemented based on how losses are stored
+    """
+    Function for plotting loss of discriminator and generator
+    
+    Arguments: gen_loss(generator loss), disc_loss(discriminator loss), epochs(list of range=number of train steps)
+
+    """
+    print(gen_loss)
+    print(disc_loss)
+    # print(gen_loss.item())
+    # print(disc_loss.item())
+
+    # gen_loss_np = gen_loss.detach().numpy()  # Convert PyTorch tensor to NumPy array
+    # disc_loss_np = disc_loss.detach().numpy()  # Convert PyTorch tensor to NumPy array
+    #
+    # gen_loss_np = gen_loss_np.reshape(-1, 1)
+    # disc_loss_np = disc_loss_np.reshape(-1, 1)
+
+    fig = plt.figure(figsize=(16,9))
+    gs = gridspec.GridSpec(ncols=8, nrows=8, figure=fig)
+    epochs = [i for i in range(epoch)]
+    epoch = epochs[-1]
+    # plot loss curve
+    ax_loss = plt.subplot(gs[:,:4])
+    ax_loss.set_xlim(0, 1.1*epoch)
+    ax_loss.plot(epochs, gen_loss, label="Generator")
+    ax_loss.plot(epochs, disc_loss, label="Discriminator")
+    ax_loss.set_xlabel('Epoch', fontsize=20)
+    ax_loss.set_ylabel('Loss', fontsize=20)
+    ax_loss.grid(True)
+    ax_loss.legend(fontsize=15)
+
+    # Save the plot
+    save_path = 'final_output\loss_plot.png'  # Default save path if not specified
+    plt.savefig(save_path, bbox_inches='tight')
+    plt.close(fig)  # Close the figure to avoid memory issues
+
+    print(f"Plot saved at {save_path}")
 
 def save_models(generator, discriminator, epoch, args):
     torch.save(generator.state_dict(), f'outputs/models/generator_epoch_{epoch}.pth')
